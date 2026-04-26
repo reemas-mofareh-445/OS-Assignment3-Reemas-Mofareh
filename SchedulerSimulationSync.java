@@ -43,6 +43,12 @@ class SharedResources {
     public static final ReentrantLock completedProcessLock = new ReentrantLock();
     public static final ReentrantLock waitingTimeLock = new ReentrantLock();
 
+    // Dedicated lock for the execution log ArrayList. ArrayList is not
+    // thread-safe; concurrent add() can throw ConcurrentModificationException
+    // or corrupt internal state. A separate lock keeps log writes from
+    // contending with counter updates.
+    public static final ReentrantLock logLock = new ReentrantLock();
+
     // TODO #2: Add a Semaphore to limit concurrent process execution
     // Example: public static final Semaphore cpuSemaphore = new Semaphore(1);
 
@@ -78,9 +84,12 @@ class SharedResources {
     
     // Method to log execution
     public static void logExecution(String message) {
-        // TODO: Protect this critical section with a lock
-        // RACE CONDITION: ArrayList is not thread-safe!
-        executionLog.add(message);
+        logLock.lock();
+        try {
+            executionLog.add(message);
+        } finally {
+            logLock.unlock();
+        }
     }
 }
 
