@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Random;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReentrantLock;
 
 // ANSI Color Codes for enhanced terminal output
@@ -49,8 +50,10 @@ class SharedResources {
     // contending with counter updates.
     public static final ReentrantLock logLock = new ReentrantLock();
 
-    // TODO #2: Add a Semaphore to limit concurrent process execution
-    // Example: public static final Semaphore cpuSemaphore = new Semaphore(1);
+    // Binary semaphore (1 permit) acting as a virtual single-CPU gate.
+    // Only one Process thread may execute its quantum at a time, which makes
+    // the simulated execution traces predictable and reproducible.
+    public static final Semaphore cpuSemaphore = new Semaphore(1);
 
     // Method to increment context switch counter
     public static void incrementContextSwitch() {
@@ -118,7 +121,13 @@ class Process implements Runnable {
     public void run() {
         // TODO #3: Acquire CPU semaphore before executing
         // This ensures only allowed number of processes run simultaneously
-        
+        try {
+            SharedResources.cpuSemaphore.acquire();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+        }
+
         try {
             if (startTime == -1) {
                 startTime = System.currentTimeMillis();
@@ -181,6 +190,7 @@ class Process implements Runnable {
         } finally {
             // TODO #4: Release CPU semaphore here
             // Always release in finally block to prevent deadlocks!
+            SharedResources.cpuSemaphore.release();
         }
     }
     
@@ -200,23 +210,31 @@ class Process implements Runnable {
     
     public void runToCompletion() {
         // TODO: Similar synchronization needed here
+        boolean acquired = false;
         try {
-            System.out.println(Colors.BRIGHT_CYAN + "  ⚡ " + Colors.BOLD + Colors.CYAN + name + 
-                              Colors.RESET + Colors.BRIGHT_CYAN + " is the last process, running to completion" + 
+            SharedResources.cpuSemaphore.acquire();
+            acquired = true;
+            System.out.println(Colors.BRIGHT_CYAN + "  ⚡ " + Colors.BOLD + Colors.CYAN + name +
+                              Colors.RESET + Colors.BRIGHT_CYAN + " is the last process, running to completion" +
                               Colors.RESET + " [" + remainingTime + "ms]");
             Thread.sleep(remainingTime);
             remainingTime = 0;
             completionTime = System.currentTimeMillis();
-            
+
             long waitingTime = (completionTime - creationTime) - burstTime;
             SharedResources.addWaitingTime(waitingTime);
             SharedResources.incrementCompletedProcess();
-            
-            System.out.println(Colors.BRIGHT_GREEN + "  ✓ " + Colors.BOLD + Colors.CYAN + name + 
+
+            System.out.println(Colors.BRIGHT_GREEN + "  ✓ " + Colors.BOLD + Colors.CYAN + name +
                               Colors.RESET + Colors.BRIGHT_GREEN + " finished execution!" + Colors.RESET);
             System.out.println();
         } catch (InterruptedException e) {
             System.out.println(Colors.RED + "  ✗ " + name + " was interrupted." + Colors.RESET);
+            Thread.currentThread().interrupt();
+        } finally {
+            if (acquired) {
+                SharedResources.cpuSemaphore.release();
+            }
         }
     }
     
