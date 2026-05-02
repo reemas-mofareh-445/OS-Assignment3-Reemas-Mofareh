@@ -8,11 +8,6 @@
 
 ## 🎥 VIDEO DEMONSTRATION LINK (REQUIRED)
 
-> **⚠️ IMPORTANT: This section is REQUIRED for grading!**
->
-> Upload your 3-5 minute video to your **PERSONAL Gmail Google Drive** (NOT university email).
-> Set sharing to "Anyone with the link can view".
-> Test the link in incognito/private mode before submitting.
 
 **Video Link**:https://drive.google.com/file/d/16OlfdzWfq5-PEalinGciaZlWbgHMUlpL/view?usp=drivesdk
 
